@@ -1,124 +1,167 @@
 import pandas as pd
-import matplotlib.pyplot as plt
 import seaborn as sns
+import matplotlib.pyplot as plt
+import glob
 import os
-import argparse
 
-# Função para padronizar nomes de colunas
-def padroniza_colunas(df):
-    df.columns = (
-        df.columns.str.upper()
-        .str.replace(" ", "_")
-        .str.replace("Á", "A")
-        .str.replace("É", "E")
-        .str.replace("Í", "I")
-        .str.replace("Ó", "O")
-        .str.replace("Ú", "U")
-        .str.replace("Ç", "C")
-        .str.replace("Ã", "A")
-        .str.replace("Ê", "E")
-        .str.replace("Â", "A")
-        .str.replace("Ô", "O")
-        .str.replace("Õ", "O")
-        .str.replace("Ü", "U")
-        .str.replace("Ê", "E")
-    )
-    return df
+parquet_folder = 'parquet_out'
+parquet_files = glob.glob(os.path.join(parquet_folder, '*.parquet'))
+df_list = [pd.read_parquet(f) for f in parquet_files]
+df = pd.concat(df_list, ignore_index=True)
 
-def main(parquet_path, uf_filtro):
-    # 1. Carregar o arquivo Parquet
-    df = pd.read_parquet(parquet_path)
-    df = padroniza_colunas(df)
-    if uf_filtro:
-        if "UF" in df.columns:
-            df = df[df["UF"] == uf_filtro]
-        else:
-            print("Coluna 'UF' não encontrada.")
-            return
 
-    # 2. Visão geral do dataset
-    print("Shape:", df.shape)
-    print("Colunas:", df.columns.tolist())
-    print(df.dtypes)
-    print(df.head())
+cnae_to_setor = {
+    # Agricultura, Pecuária, Produção Florestal, Pesca e Aqüicultura
+    '01': 'Agropecuária',
+    '02': 'Agropecuária',
+    '03': 'Agropecuária',
 
-    # 3. Verificar valores nulos
-    print(df.isnull().sum().sort_values(ascending=False))
+    # Indústrias Extrativas
+    '05': 'Indústria Extrativa',
+    '06': 'Indústria Extrativa',
+    '07': 'Indústria Extrativa',
+    '08': 'Indústria Extrativa',
+    '09': 'Indústria Extrativa',
 
-    # 4. Empresas por MUNICIPIO
-    if "MUNICIPIO" in df.columns:
-        plt.figure(figsize=(12,6))
-        df["MUNICIPIO"].value_counts().plot(kind="bar")
-        plt.title("Quantidade de Estabelecimentos por MUNICIPIO")
-        plt.xlabel("MUNICIPIO")
-        plt.ylabel("Quantidade")
-        plt.tight_layout()
-        plt.show()
-    else:
-        print("Coluna 'MUNICIPIO' não encontrada.")
+    # Indústrias de Transformação
+    '10': 'Indústria',
+    '11': 'Indústria',
+    '12': 'Indústria',
+    '13': 'Indústria',
+    '14': 'Indústria',
+    '15': 'Indústria',
+    '16': 'Indústria',
+    '17': 'Indústria',
+    '18': 'Indústria',
+    '19': 'Indústria',
+    '20': 'Indústria',
+    '21': 'Indústria',
+    '22': 'Indústria',
+    '23': 'Indústria',
+    '24': 'Indústria',
+    '25': 'Indústria',
+    '26': 'Indústria',
+    '27': 'Indústria',
+    '28': 'Indústria',
+    '29': 'Indústria',
+    '30': 'Indústria',
+    '31': 'Indústria',
+    '32': 'Indústria',
+    '33': 'Indústria',
 
-    # 5. Situação Cadastral
-    col_situacao = "SITUACAO_CADASTRAL"
-    if col_situacao in df.columns:
-        plt.figure(figsize=(8,4))
-        df[col_situacao].value_counts().plot(kind="bar")
-        plt.title("Situação Cadastral dos Estabelecimentos")
-        plt.xlabel("Código da Situação")
-        plt.ylabel("Quantidade")
-        plt.tight_layout()
-        plt.show()
-    else:
-        print(f"Coluna '{col_situacao}' não encontrada.")
+    # Eletricidade e Gás, Água, Esgoto, Atividades de Gestão de Resíduos
+    '35': 'Infraestrutura',
+    '36': 'Infraestrutura',
+    '37': 'Infraestrutura',
+    '38': 'Infraestrutura',
+    '39': 'Infraestrutura',
 
-    # 6. Identificador Matriz/Filial
-    col_idmatriz = "IDENTIFICADOR_MATRIZ_FILIAL"
-    if col_idmatriz in df.columns:
-        plt.figure(figsize=(6,4))
-        labels = df[col_idmatriz].map({"1": "Matriz", "2": "Filial"}).fillna(df[col_idmatriz])
-        df[col_idmatriz].value_counts().plot(
-            kind="pie", 
-            autopct="%1.1f%%", 
-            labels=labels.value_counts().index
-        )
-        plt.title("Distribuição Matriz x Filial")
-        plt.ylabel("")
-        plt.tight_layout()
-        plt.show()
-    else:
-        print(f"Coluna '{col_idmatriz}' não encontrada.")
+    # Construção
+    '41': 'Construção',
+    '42': 'Construção',
+    '43': 'Construção',
 
-    # 7. Top 10 CNAEs principais
-    col_cnae = "CNAE_FISCAL_PRINCIPAL"
-    if col_cnae in df.columns:
-        top_cnaes = df[col_cnae].value_counts().head(10)
-        plt.figure(figsize=(10,5))
-        sns.barplot(x=top_cnaes.index.astype(str), y=top_cnaes.values)
-        plt.title("Top 10 CNAEs Fiscais Principais")
-        plt.xlabel("CNAE")
-        plt.ylabel("Quantidade")
-        plt.tight_layout()
-        plt.show()
-    else:
-        print(f"Coluna '{col_cnae}' não encontrada.")
+    # Comércio
+    '45': 'Comércio',
+    '46': 'Comércio',
+    '47': 'Comércio',
 
-    # 8. Estabelecimentos por ano de início de atividade
-    col_data_inicio = "DATA_INICIO_ATIVIDADE"
-    if col_data_inicio in df.columns:
-        df[col_data_inicio] = pd.to_datetime(df[col_data_inicio], errors="coerce")
-        df["ANO_INICIO"] = df[col_data_inicio].dt.year
-        df["ANO_INICIO"].value_counts().sort_index().plot(kind="line", figsize=(12,6))
-        plt.title("Estabelecimentos por Ano de Início da Atividade")
-        plt.xlabel("Ano")
-        plt.ylabel("Quantidade")
-        plt.grid(True)
-        plt.tight_layout()
-        plt.show()
-    else:
-        print(f"Coluna '{col_data_inicio}' não encontrada.")
+    # Transporte, Armazenagem e Correio
+    '49': 'Serviços',
+    '50': 'Serviços',
+    '51': 'Serviços',
+    '52': 'Serviços',
+    '53': 'Serviços',
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Análise dos dados abertos do CNPJ")
-    parser.add_argument("--parquet", type=str, required=False, default=os.path.join("data", "parquet_single", "part-00000-9841102f-9e8b-4271-a2a8-6ab888bcc5c2-c000.snappy.parquet"), help="Caminho do arquivo Parquet")
-    parser.add_argument("--uf", type=str, required=False, default="PA", help="UF para filtrar (ex: PA)")
-    args = parser.parse_args()
-    main(args.parquet, args.uf)
+    # Alojamento e Alimentação
+    '55': 'Serviços',
+    '56': 'Serviços',
+
+    # Informação e Comunicação
+    '58': 'Serviços',
+    '59': 'Serviços',
+    '60': 'Serviços',
+    '61': 'Serviços',
+    '62': 'Serviços',
+    '63': 'Serviços',
+
+    # Atividades Financeiras, Seguros e Serviços Relacionados
+    '64': 'Serviços',
+    '65': 'Serviços',
+    '66': 'Serviços',
+
+    # Atividades Imobiliárias
+    '68': 'Serviços',
+
+    # Atividades Profissionais, Científicas e Técnicas
+    '69': 'Serviços',
+    '70': 'Serviços',
+    '71': 'Serviços',
+    '72': 'Serviços',
+    '73': 'Serviços',
+    '74': 'Serviços',
+    '75': 'Serviços',
+
+    # Administração Pública, Defesa e Seguridade Social
+    '84': 'Administração Pública',
+
+    # Educação
+    '85': 'Educação',
+
+    # Saúde Humana e Serviços Sociais
+    '86': 'Saúde',
+    '87': 'Saúde',
+    '88': 'Saúde',
+
+    # Artes, Cultura, Esporte e Recreação
+    '90': 'Serviços',
+    '91': 'Serviços',
+    '92': 'Serviços',
+    '93': 'Serviços',
+
+    # Outras atividades de serviços
+    '94': 'Serviços',
+    '95': 'Serviços',
+    '96': 'Serviços',
+
+    # Serviços Domésticos
+    '97': 'Outros',
+
+    # Organismos Internacionais e Outras Instituições Extraterritoriais
+    '99': 'Outros'
+}
+
+
+def extrai_setor(cnae):
+    if pd.isna(cnae):
+        return 'Desconhecido'
+    codigo2 = str(cnae).strip()[:2]
+    return cnae_to_setor.get(codigo2, 'Outro')
+
+df['SETOR_ECONOMICO'] = df['CNAE FISCAL PRINCIPAL'].apply(extrai_setor)
+setor_dist = df['SETOR_ECONOMICO'].value_counts().reset_index()
+setor_dist.columns = ['SETOR_ECONOMICO', 'Quantidade']
+
+plt.figure(figsize=(10,6))
+sns.barplot(data=setor_dist, x='Quantidade', y='SETOR_ECONOMICO', palette='viridis')
+plt.title('Empresas por Setor Econômico')
+plt.xlabel('Quantidade de Empresas')
+plt.ylabel('Setor Econômico')
+plt.tight_layout()
+plt.show()
+
+setor_uf = (
+    df.groupby(['UF', 'SETOR_ECONOMICO'])
+    .size()
+    .reset_index(name='Quantidade')
+    .pivot(index='SETOR_ECONOMICO', columns='UF', values='Quantidade')
+    .fillna(0)
+)
+
+plt.figure(figsize=(14,7))
+sns.heatmap(setor_uf, cmap='viridis_r', linewidths=0.5)
+plt.title('Distribuição de Setores Econômicos por UF')
+plt.xlabel('UF')
+plt.ylabel('Setor Econômico')
+plt.tight_layout()
+plt.show()
